@@ -15,12 +15,13 @@ RUN apt-get update && apt-get install -y \
 # Clean up to reduce image size
 RUN apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-# Copy project to image
-COPY ./ /root
-
 # Install dependencies
+COPY ./requirements.txt /root/
 RUN pip install runpod requests pillow && \
     pip install -r /root/requirements.txt
+
+# Copy project to image
+COPY ./ /root
 
 # Start container
 CMD ["/root/start.sh"]

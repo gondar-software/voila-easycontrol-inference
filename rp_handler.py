@@ -67,8 +67,12 @@ def handler(job):
             "error": "unknown error occurred during the processing."
         }
 
-
-
 # Start the handler only if this script is run directly
 if __name__ == "__main__":
+    # Initilize processor
+    init_thread = Thread(target=initialize)
+    init_thread.daemon = True
+    init_thread.start()
+
+    # Handle requests
     runpod.serverless.start({"handler": handler})
