@@ -3,6 +3,7 @@ import os
 import time
 import base64
 from threading import Thread, Lock
+from typing import Optional
 from PIL import Image
 from io import BytesIO
 from urllib.request import urlopen
