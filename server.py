@@ -9,12 +9,13 @@ from urllib.request import urlopen
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from src.image_processor import ImageProcessor
 from src.constants import BASE_MODEL_PATH, LORA_PATH, BASE_IMAGE_URL
 
 RETRY_MS = int(os.environ.get("RETRY_MS", 500))
-RETRY_MAX = int(os.environ.get("RETRY_MS", 1200))
+RETRY_MAX = int(os.environ.get("RETRY_MAX", 1200))
 
 _lora_names = {
     1: "Ghibli.safetensors",
@@ -26,33 +27,48 @@ _lora_names = {
 _lock = Lock()
 _processor: Optional[ImageProcessor] = None
 _is_ready = False
-_base_image = Image.open(BytesIO(urlopen(BASE_IMAGE_URL).read()))
+
+# Initialize base image with error handling
+try:
+    _base_image = Image.open(BytesIO(urlopen(BASE_IMAGE_URL).read()))
+except Exception as e:
+    raise RuntimeError(f"Failed to load base image from {BASE_IMAGE_URL}: {str(e)}")
 
 def initialize():
-    global _lock, _processor, _is_ready
-    _processor = ImageProcessor(BASE_MODEL_PATH, LORA_PATH, _base_image)
-    with _lock:
-        _is_ready = True
+    global _processor, _is_ready, _lock
+    try:
+        _processor = ImageProcessor(BASE_MODEL_PATH, LORA_PATH, _base_image)
+        with _lock:
+            _is_ready = True
+    except Exception as e:
+        raise RuntimeError(f"Failed to initialize ImageProcessor: {str(e)}")
 
-def process_prompt(url, workflow_id):
-    global _lock, _processor, _is_ready
+def process_prompt(url: str, workflow_id: int) -> BytesIO:
+    global _processor, _is_ready, _lock
+    
     retries = 0
     while retries < RETRY_MAX:
-        retries += 1
         with _lock:
             if _is_ready:
                 break
-        
         time.sleep(RETRY_MS / 1000.)
+        retries += 1
     else:
-        raise RuntimeError("initilize time out")
+        raise RuntimeError("Initialization timeout")
 
-    result_image = _processor.process_image(_lora_names[workflow_id], subject_imgs=[Image.open(BytesIO(urlopen(url).read()))])
+    try:
+        input_image = Image.open(BytesIO(urlopen(url).read()))
+        result_image = _processor.process_image(
+            _lora_names[workflow_id], 
+            subject_imgs=[input_image]
+        )
 
-    jpg_buffer = BytesIO()
-    result_image.save(jpg_buffer, format='JPEG', quality=85)
-    
-    return jpg_buffer
+        jpg_buffer = BytesIO()
+        result_image.save(jpg_buffer, format='JPEG', quality=85)
+        jpg_buffer.seek(0)
+        return jpg_buffer
+    except Exception as e:
+        raise RuntimeError(f"Image processing failed: {str(e)}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -63,7 +79,7 @@ async def lifespan(app: FastAPI):
     yield
 
     pass
-        
+
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
@@ -77,27 +93,29 @@ app.add_middleware(
 @app.post('/process')
 async def process(query: dict):
     try:
-        url = query.get("url", ORIGIN_IMAGE_URL)
+        url = query.get("url")
         workflow_id = query.get("workflow_id", 1)
+        
+        if not url:
+            raise HTTPException(status_code=400, detail="URL is required")
+        
+        if workflow_id not in _lora_names:
+            raise HTTPException(status_code=400, detail="Invalid workflow_id")
 
         output = process_prompt(url, workflow_id)
-
         return Response(
-            content=output,
-            media_type=f"image/jpeg"
+            content=output.getvalue(),
+            media_type="image/jpeg"
         )
-
-    except Exception as e:  
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Error during job execution: {str(e)}"
+            detail=f"Error during processing: {str(e)}"
         )
 
 if __name__ == "__main__":
-    init_thread = Thread(target=initialize)
-    init_thread.daemon = True
-    init_thread.start()
-
     import uvicorn
     uvicorn.run(
         app="server:app",
