@@ -39,6 +39,7 @@ def handler(job):
     if _lora_names.get(workflow_id, None) is None:
         return { "error": "can't find workflow." }
 
+    global _lock, _is_ready
     retries = 0
     while retries < RETRY_MAX:
         retries += 1
