@@ -65,9 +65,9 @@ def handler(job):
             "output": "success",
             "message": result_base64,
         }
-    except:
+    except Exception as e:
         return {
-            "error": "unknown error occurred during the processing."
+            "error": f"unknown error occurred during the processing. {e}"
         }
 
 # Start the handler only if this script is run directly
