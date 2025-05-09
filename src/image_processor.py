@@ -19,7 +19,7 @@ class ImageProcessor:
         transformer = FluxTransformer2DModel.from_pretrained(base_path, subfolder="transformer", torch_dtype=torch.bfloat16, device=device)
         self.pipe.transformer = transformer
         self.pipe.to(device)
-        self.process_image("Ghibli.safetensors", spatial_images=[base_spatial_image])
+        self.process_image("Ghibli.safetensors", spatial_imgs=[base_spatial_image])
         
     def clear_cache(self, transformer):
         for name, attn_processor in transformer.attn_processors.items():
