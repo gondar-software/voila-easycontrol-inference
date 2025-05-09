@@ -10,6 +10,7 @@ from urllib.request import urlopen
 
 from src.image_processor import ImageProcessor
 from src.constants import BASE_MODEL_PATH, LORA_PATH, BASE_IMAGE_URL
+from src.utils import load_image_from_url, tensor2pil
 
 RETRY_MS = int(os.environ.get("RETRY_MS", 500))
 RETRY_MAX = int(os.environ.get("RETRY_MS", 1200))
@@ -24,7 +25,7 @@ _lora_names = {
 _lock = Lock()
 _processor: Optional[ImageProcessor] = None
 _is_ready = False
-_base_image = Image.open(BytesIO(urlopen(BASE_IMAGE_URL).read()))
+_base_image = load_image_from_url(BASE_IMAGE_URL)
 
 def initialize():
     _processor = ImageProcessor(BASE_MODEL_PATH, LORA_PATH, _base_image)
@@ -53,10 +54,12 @@ def handler(job):
         }
 
     try:
-        result_image = _processor.process_image(_lora_names[workflow_id], spatial_images=[Image.open(BytesIO(urlopen(url).read()))])
+        result_image = _processor.process_image(_lora_names[workflow_id], spatial_images=[load_image_from_url(url)])
+        result_pil_image = tensor2pil(result_image)
 
         jpg_buffer = BytesIO()
-        result_image.save(jpg_buffer, format='JPEG', quality=85)
+        result_pil_image.save(jpg_buffer, format='JPEG', quality=85)
+        
         result_base64 = base64.b64encode(jpg_buffer.getvalue()).decode('utf-8')
 
         return {
