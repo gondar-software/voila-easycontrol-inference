@@ -22,6 +22,7 @@ RUN pip install runpod requests pillow && \
 
 # Copy project to image
 COPY ./ /root
+RUN chmod +x /root/start.sh
 
 # Start container
 CMD ["/root/start.sh"]
