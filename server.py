@@ -15,7 +15,7 @@ from src.image_processor import ImageProcessor
 from src.constants import BASE_MODEL_PATH, LORA_PATH, BASE_IMAGE_URL
 
 RETRY_MS = int(os.environ.get("RETRY_MS", 500))
-RETRY_MAX = int(os.environ.get("RETRY_MAX", 1200))
+RETRY_MAX = int(os.environ.get("RETRY_MAX", 500))
 
 _lora_names = {
     1: "Ghibli.safetensors",
@@ -28,7 +28,6 @@ _lock = Lock()
 _processor: Optional[ImageProcessor] = None
 _is_ready = False
 
-# Initialize base image with error handling
 try:
     _base_image = Image.open(BytesIO(urlopen(BASE_IMAGE_URL).read()))
 except Exception as e:
@@ -49,36 +48,42 @@ def process_prompt(url: str, workflow_id: int) -> BytesIO:
     retries = 0
     while retries < RETRY_MAX:
         with _lock:
-            if _is_ready:
+            if _is_ready and _processor is not None:
                 break
         time.sleep(RETRY_MS / 1000.)
         retries += 1
     else:
-        raise RuntimeError("Initialization timeout")
+        raise RuntimeError(f"Initialization timeout after {RETRY_MAX * RETRY_MS / 1000} seconds")
 
     try:
         input_image = Image.open(BytesIO(urlopen(url).read()))
+        if workflow_id not in _lora_names:
+            raise ValueError(f"Invalid workflow_id: {workflow_id}")
+        
+        lora_name = _lora_names[workflow_id]
         result_image = _processor.process_image(
-            _lora_names[workflow_id], 
+            lora_name, 
             subject_imgs=[input_image]
         )
 
         jpg_buffer = BytesIO()
         result_image.save(jpg_buffer, format='JPEG', quality=85)
         jpg_buffer.seek(0)
+        
         return jpg_buffer
     except Exception as e:
         raise RuntimeError(f"Image processing failed: {str(e)}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("Starting initialization thread...")
     init_thread = Thread(target=initialize)
     init_thread.daemon = True
     init_thread.start()
 
     yield
 
-    pass
+    print("Shutting down...")
 
 app = FastAPI(lifespan=lifespan)
 
@@ -89,6 +94,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get('/health')
+async def health_check():
+    return {"status": "ready" if _is_ready else "initializing"}
 
 @app.post('/process')
 async def process(query: dict):
