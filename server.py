@@ -6,6 +6,9 @@ from threading import Thread, Lock
 from PIL import Image
 from io import BytesIO
 from urllib.request import urlopen
+from fastapi import FastAPI, HTTPException, Response
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 from src.image_processor import ImageProcessor
 from src.constants import BASE_MODEL_PATH, LORA_PATH, BASE_IMAGE_URL
@@ -26,18 +29,13 @@ _is_ready = False
 _base_image = Image.open(BytesIO(urlopen(BASE_IMAGE_URL).read()))
 
 def initialize():
+    global _lock, _processor, _is_ready
     _processor = ImageProcessor(BASE_MODEL_PATH, LORA_PATH, _base_image)
     with _lock:
         _is_ready = True
 
-def handler(job):
-    url = job["input"].get("url", None)
-    workflow_id = job["input"].get("workflow_id", 1)
-    if url is None:
-        return { "error": "url should be defined." }
-    if _lora_names.get(workflow_id, None) is None:
-        return { "error": "can't find workflow." }
-
+def process_prompt(url, workflow_id):
+    global _lock, _processor, _is_ready
     retries = 0
     while retries < RETRY_MAX:
         retries += 1
@@ -47,32 +45,63 @@ def handler(job):
         
         time.sleep(RETRY_MS / 1000.)
     else:
-        return { 
-            "error": "initialization time out" 
-        }
+        raise RuntimeError("initilize time out")
 
-    try:
-        result_image = _processor.process_image(_lora_names[workflow_id], spatial_images=[Image.open(BytesIO(urlopen(url).read()))])
+    result_image = _processor.process_image(_lora_names[workflow_id], subject_imgs=[Image.open(BytesIO(urlopen(url).read()))])
 
-        jpg_buffer = BytesIO()
-        result_image.save(jpg_buffer, format='JPEG', quality=85)
-        result_base64 = base64.b64encode(jpg_buffer.getvalue()).decode('utf-8')
+    jpg_buffer = BytesIO()
+    result_image.save(jpg_buffer, format='JPEG', quality=85)
+    
+    return jpg_buffer
 
-        return {
-            "output": "success",
-            "message": result_base64,
-        }
-    except:
-        return {
-            "error": "unknown error occurred during the processing."
-        }
-
-# Start the handler only if this script is run directly
-if __name__ == "__main__":
-    # Initilize processor
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     init_thread = Thread(target=initialize)
     init_thread.daemon = True
     init_thread.start()
 
-    # Handle requests
-    runpod.serverless.start({"handler": handler})
+    yield
+
+    pass
+        
+app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.post('/process')
+async def process(query: dict):
+    try:
+        url = query.get("url", ORIGIN_IMAGE_URL)
+        workflow_id = query.get("workflow_id", 1)
+
+        output = process_prompt(url, workflow_id)
+
+        return Response(
+            content=output,
+            media_type=f"image/jpeg"
+        )
+
+    except Exception as e:  
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error during job execution: {str(e)}"
+        )
+
+if __name__ == "__main__":
+    init_thread = Thread(target=initialize)
+    init_thread.daemon = True
+    init_thread.start()
+
+    import uvicorn
+    uvicorn.run(
+        app="server:app",
+        host="0.0.0.0",
+        port=8188,
+        reload=False
+    )

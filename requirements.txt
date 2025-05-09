@@ -16,3 +16,5 @@ transformers==4.49.0
 datasets
 wandb
 timm
+fastapi
+uvicorn
