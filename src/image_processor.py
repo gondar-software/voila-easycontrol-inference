@@ -19,6 +19,7 @@ class ImageProcessor:
         transformer = FluxTransformer2DModel.from_pretrained(base_path, subfolder="transformer", torch_dtype=torch.bfloat16, device=device)
         self.pipe.transformer = transformer
         self.pipe.to(device)
+        self.lora_path = lora_path
         self.process_image("Ghibli.safetensors", spatial_imgs=[base_spatial_image])
         
     def clear_cache(self, transformer):
@@ -27,7 +28,7 @@ class ImageProcessor:
             
     @spaces.GPU()
     def process_image(self, lora_name, prompt='', subject_imgs=[], spatial_imgs=[], height=512, width=512, output_path=None, seed=42, zero_steps=1):
-        update_model_with_lora_v2(lora_path, lora_name, [1], self.pipe.transformer, 512)
+        update_model_with_lora_v2(self.lora_path, lora_name, [1], self.pipe.transformer, 512)
         image = self.pipe(
             prompt,
             height=int(height),
