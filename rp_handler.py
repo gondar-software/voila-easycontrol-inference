@@ -12,7 +12,7 @@ from src.image_processor import ImageProcessor
 from src.constants import BASE_MODEL_PATH, LORA_PATH, BASE_IMAGE_URL
 
 RETRY_MS = int(os.environ.get("RETRY_MS", 500))
-RETRY_MAX = int(os.environ.get("RETRY_MS", 1200))
+RETRY_MAX = int(os.environ.get("RETRY_MAX", 600))
 
 _lora_names = {
     1: "Ghibli.safetensors",
