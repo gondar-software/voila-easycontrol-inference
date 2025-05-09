@@ -27,12 +27,14 @@ _is_ready = False
 _base_image = Image.open(BytesIO(urlopen(BASE_IMAGE_URL).read()))
 
 def initialize():
+    global _lock, _is_ready, _processor
     _processor = ImageProcessor(BASE_MODEL_PATH, LORA_PATH, _base_image)
-    global _lock, _is_ready
     with _lock:
         _is_ready = True
 
 def handler(job):
+    global _lock, _is_ready, _processor
+
     url = job["input"].get("url", None)
     workflow_id = job["input"].get("workflow_id", 1)
     if url is None:
@@ -40,7 +42,6 @@ def handler(job):
     if _lora_names.get(workflow_id, None) is None:
         return { "error": "can't find workflow." }
 
-    global _lock, _is_ready
     retries = 0
     while retries < RETRY_MAX:
         retries += 1
