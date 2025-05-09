@@ -28,6 +28,7 @@ _base_image = Image.open(BytesIO(urlopen(BASE_IMAGE_URL).read()))
 
 def initialize():
     _processor = ImageProcessor(BASE_MODEL_PATH, LORA_PATH, _base_image)
+    global _lock, _is_ready
     with _lock:
         _is_ready = True
 
