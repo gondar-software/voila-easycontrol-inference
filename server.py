@@ -74,7 +74,7 @@ def process_prompt(url: str, workflow_id: int) -> BytesIO:
         lora_name = _lora_names[workflow_id]
         result_image = _processor.process_image(
             lora_name, 
-            prompt=[_prompts[workflow_id]]
+            prompt=[_prompts[workflow_id]],
             subject_imgs=[input_image]
         )
 
