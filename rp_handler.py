@@ -69,7 +69,7 @@ def handler(job):
     try:
         result_image = _processor.process_image(
             _lora_names[workflow_id], 
-            prompt=[_prompts[workflow_id]]
+            prompt=[_prompts[workflow_id]],
             spatial_imgs=[Image.open(BytesIO(urlopen(url).read()))]
         )
 
