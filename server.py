@@ -23,6 +23,17 @@ _lora_names = {
     4: "3d-cartoon-960.safetensors",
     5: "labubu-660.safetensors",
     6: "classic_toys.safetensors",
+    7: "clay_680.safetensors",
+    8: "simpsons_480.safetensors",
+}
+_prompts = {
+    1: "Ghibli Studio style, A digital illustration of",
+    2: "Snoopy style, A digital illustration of",
+    4: "3D Cartoon style, A digital illustration of",
+    5: "Labubu style, A digital illustration of",
+    6: "Classic Toys style, A digital illustration of",
+    7: "Clay style, A digital illustration of",
+    8: "Simpsons style, A digital illustration of",
 }
 _lock = Lock()
 _processor: Optional[ImageProcessor] = None
@@ -63,6 +74,7 @@ def process_prompt(url: str, workflow_id: int) -> BytesIO:
         lora_name = _lora_names[workflow_id]
         result_image = _processor.process_image(
             lora_name, 
+            prompt=[_prompts[workflow_id]]
             subject_imgs=[input_image]
         )
 
