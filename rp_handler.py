@@ -23,7 +23,9 @@ _lora_names = {
     7: "clay_680.safetensors",
     8: "simpsons_480.safetensors",
     9: "rick_72k.safetensors",
-    10: "family_100k.safetensors"
+    10: "family_100k.safetensors",
+    11: "latte_54k.safetensors",
+    12: "south_62k.safetensors"
 }
 _prompts = {
     1: "Ghibli Studio style, A digital illustration of",
@@ -34,7 +36,9 @@ _prompts = {
     7: "Clay style, A digital illustration of",
     8: "Simpsons style, A digital illustration of",
     9: "Rick Morty style, A digital illustration of",
-    10: "Family Guy style, A digital illustration of"
+    10: "Family Guy style, A digital illustration of",
+    11: "Latte Art style, A digital illustration of",
+    12: "South Park style, A digital illustration of"
 }
 _lock = Lock()
 _processor: Optional[ImageProcessor] = None
