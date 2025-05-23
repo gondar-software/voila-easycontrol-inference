@@ -17,7 +17,7 @@ RETRY_MAX = int(os.environ.get("RETRY_MAX", 600))
 _lora_names = {
     1: "Ghibli.safetensors",
     2: "snoopy-1500.safetensors",
-    4: "3d-cartoon-960.safetensors",
+    4: "cartoon_v3_64k.safetensors",
     5: "labubu-660.safetensors",
     6: "classic_toys.safetensors",
     7: "clay_680.safetensors",
@@ -26,7 +26,7 @@ _lora_names = {
     10: "family_100k.safetensors",
     11: "latte_54k.safetensors",
     12: "south_62k.safetensors",
-    13: "cartoon_v3_64k.safetensors",
+    13: "chibi_26k.safetensors",
     14: "prince_56k.safetensors",
 }
 _prompts = {
@@ -41,7 +41,7 @@ _prompts = {
     10: "Family Guy style, A digital illustration of",
     11: "Latte Art style, A digital illustration of",
     12: "South Park style, A digital illustration of",
-    13: "3D Cartoon style, A digital illustration of",
+    13: "Chibi style, A digital illustration of",
     14: "Prince and Princess style, A digital illustration of"
 }
 _lock = Lock()
